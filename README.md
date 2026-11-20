@@ -1,16 +1,34 @@
-# fi-mcp
+# Fi Smart Collar MCP
 
-Not affiliated with or endorsed by Fi. "Fi" is used only to say which collar
-this works with.
+Lets Claude read your dog or cat's data from a [Fi](https://tryfi.com) smart
+collar. You can ask things like "How long did Mochi walk today?", "How has
+Biscuit been sleeping this week?", or "Is Biscuit scratching more than
+usual?" and get answers from real numbers, compared with your pet's own
+normal.
 
-An MCP server that lets Claude read your dog's data from a Fi smart collar.
-Claude can then answer questions like "how has Biscuit been this week?" from
-real activity, sleep, and behavior numbers, compared with the dog's own normal.
+It's an MCP server. MCP (Model Context Protocol) is the standard way to give
+an AI app like Claude Code or the Claude desktop app new tools. This server
+adds read-only tools for activity, sleep, location, and, on Series 3 and newer
+collars, behavior: barking, licking, scratching, eating, and drinking. Nothing
+here changes collar settings, turns on the light, or starts lost-dog mode.
 
-All tools are read-only. Nothing here changes collar settings, turns on the
-light, or starts lost-dog mode.
+Unofficial: not affiliated with or endorsed by Fi. It uses the same private
+API as the Fi app, so it can break when Fi changes things.
 
-## Important: this uses an unofficial API
+## What you need
+
+- A Fi collar and a Fi account that signs in with an email and password. If
+  you only sign in to the Fi app with Apple or Google, set a password first
+  (see Setup).
+- A Mac. The login is saved in the macOS Keychain. Environment variables work
+  instead, but only macOS has been tested.
+- [uv](https://docs.astral.sh/uv/) (`brew install uv`).
+- Claude Code, the Claude desktop app, or another app that supports MCP.
+
+The tools can show Claude where your pet is right now, which is often your
+home address.
+
+## About the unofficial API
 
 Fi has no public API. This server sends the same GraphQL queries the Fi phone
 app sends to `api.tryfi.com`. Those queries come from open-source projects
@@ -34,8 +52,6 @@ What that means for you:
   very few requests.
 
 ## Setup
-
-You need [uv](https://docs.astral.sh/uv/) (`brew install uv`).
 
 Get the code and run every step below from its folder:
 
@@ -85,18 +101,18 @@ cd fi-smart-collar-mcp
      "mcpServers": {
        "fi": {
          "command": "/full/path/to/uv",
-         "args": ["run", "--directory", "/full/path/to/fi-mcp", "fi-mcp"]
+         "args": ["run", "--directory", "/full/path/to/fi-smart-collar-mcp", "fi-mcp"]
        }
      }
    }
    ```
 
-## Per-dog settings
+## Per-pet settings
 
-Some things about a dog are true but invisible in the data. Write them in
+Some things about a pet are true but invisible in the data. Write them in
 `~/.config/fi-mcp/settings.toml` (or set `FI_MCP_SETTINGS` to another path).
-Name each section after the dog as it appears in the Fi app, or use its Fi
-pet id:
+Name each section after the pet as it appears in the Fi app, or use its Fi
+pet id. The table is called `dogs`, but it works for cats too:
 
 ```toml
 [dogs.Biscuit]
@@ -108,14 +124,14 @@ If the file has a mistake, the server logs a warning and ignores the file.
 
 | Setting | Effect |
 |---|---|
-| `collar_off_at_night` | The collar often comes off at night, so Fi records no night sleep and no night-time behavior. The snapshot stops flagging this dog's rest. The snapshot, `get_sleep`, and `get_behavior` add a note so Claude knows low rest and lower behavior counts may come from missing nights. |
+| `collar_off_at_night` | The collar often comes off at night, so Fi records no night sleep and no night-time behavior. The snapshot stops flagging this pet's rest. The snapshot, `get_sleep`, and `get_behavior` add a note so Claude knows low rest and lower behavior counts may come from missing nights. |
 
 ## Tools
 
 | Tool | What it returns |
 |---|---|
-| `get_health_snapshot` | The best first call. With no dog named, it returns one snapshot per dog. Each has profile and collar state, yesterday and today, the last 7 full days compared with up to 4 weeks before (steps, distance, total rest, night sleep, naps), behavior for today, the past week, and the past month, and a list of flags for anything that changed by 20% or more. |
-| `list_pets` | Dogs on the account: breed, age, weight (kg), collar model, battery, connection. Base stations. |
+| `get_health_snapshot` | The best first call. With no pet named, it returns one snapshot per pet. Each has profile and collar state, yesterday and today, the last 7 full days compared with up to 4 weeks before (steps, distance, total rest, night sleep, naps), behavior for today, the past week, and the past month, and a list of flags for anything that changed by 20% or more. |
+| `list_pets` | Pets on the account: breed, age, weight (kg), collar model, battery, connection. Base stations. |
 | `get_activity` | Steps, step goal, and distance (km) per day, week, or month. Starts at the last finished period (yesterday, last full week, last full month). |
 | `get_sleep` | Night sleep and nap minutes per day. "weekly" and "monthly" give totals over the days with data, the number of those days, and the average rest per day. Starts at the current period. |
 | `get_behavior` | Series 3+ only. Barking, licking, scratching, eating, and drinking, with Fi's up/down marker. "day" gives totals so far today; "week" and "month" give daily averages. Also Fi's activity and rest trends. Optional chart data. |
@@ -160,7 +176,7 @@ These numbers are tuned by hand in `src/fi_mcp/health.py`.
   charts are segments in seconds since local midnight.
 - Series 3 collars don't report charging state or temperature, so those
   fields are left out.
-- Daily dates use this computer's time zone. If you travel without the dog,
+- Daily dates use this computer's time zone. If you travel without your pet,
   dates can shift by a day.
 - Behavior data is Fi's estimate from collar motion. It is a signal worth
   asking about, not a diagnosis.
@@ -172,10 +188,10 @@ scheduled jobs on your computer that can run a command but can't load an MCP
 server:
 
 ```bash
-uv run --directory /full/path/to/fi-mcp fi-mcp-snapshot --pet Biscuit
+uv run --directory /full/path/to/fi-smart-collar-mcp fi-mcp-snapshot --pet Biscuit
 ```
 
-Leave out `--pet` to get every dog. If Fi can't be read, it prints
+Leave out `--pet` to get every pet. If Fi can't be read, it prints
 `{"error": ...}` and exits with code 1.
 
 The command needs the login saved on your computer, so it only runs there.
@@ -198,5 +214,5 @@ Code layout:
 - `src/fi_mcp/parse.py`: turns raw answers into labeled records with units
 - `src/fi_mcp/health.py`: recent-vs-baseline comparison and flags
 - `src/fi_mcp/server.py`: the MCP tools
-- `src/fi_mcp/settings.py`: per-dog settings file
+- `src/fi_mcp/settings.py`: per-pet settings file
 - `src/fi_mcp/credentials.py`, `setup_cli.py`: Keychain login storage
